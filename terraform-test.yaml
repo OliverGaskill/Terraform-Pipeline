@@ -1,0 +1,89 @@
+name: Terraform Plan and Apply
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - modules/** # Trigger workflow if anything changes in modules/
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  detect-changes:
+    name: Detect Changed Directories
+    runs-on: self-hosted
+    outputs:
+      changed_dirs: ${{ steps.filter.outputs.changed_dirs }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Detect changed directories
+        id: filter
+        run: |
+          changed_dirs=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | awk -F'/' '/modules/ {print $1"/"$2"/"$3"/"$4"/"$5"/"$6}' | sort -u | jq -R -s -c 'split("\n")[:-1]')
+          echo "Changed directories: $changed_dirs"
+          echo "changed_dirs=$changed_dirs" >> "$GITHUB_ENV"
+          echo "changed_dirs=$changed_dirs" >> "$GITHUB_OUTPUT"
+
+  terraform:
+    name: Terraform Plan and Apply
+    needs: detect-changes
+    runs-on: self-hosted
+    if: ${{ fromJson(needs.detect-changes.outputs.changed_dirs) != [] }} # Skip job if no directories changed
+
+    strategy:
+      matrix:
+        directory: ${{ fromJson(needs.detect-changes.outputs.changed_dirs) }}
+ 
+
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Azure CLI Login
+        run: |
+          az login --service-principal -u "${{ secrets.AZURE_CLIENT_ID }}" -p "${{ secrets.AZURE_CLIENT_SECRET }}" --tenant "${{ secrets.AZURE_TENANT_ID }}"  
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.11.1
+          terraform_wrapper: true
+
+      - name: Terraform Init
+        run: terraform init
+        working-directory: ${{ matrix.directory }}
+
+      - name: Terraform Format Check
+        if: github.event_name == 'pull_request'
+        run: terraform fmt -recursive
+
+      - name: Post Plan to PR (Using GitHub API)
+        if: github.event_name == 'pull_request'
+        run: |
+          # Capture the plan output into a variable (limit to prevent truncation)
+          PR_BODY=$(head -c 65000 tfplan_output.txt)
+
+          # Prepare the comment body (wrap the plan output in code blocks)
+          COMMENT_BODY="### Terraform Plan - ${{ matrix.directory }}\n\`\`\`\n$PR_BODY\n\`\`\`"
+
+          # Use curl to make a POST request to GitHub's API to create a comment on the PR
+          curl -X POST \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -d "{\"body\": \"$COMMENT_BODY\"}" \
+            "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments"
+
+      - name: Terraform Apply
+        if: github.event.pull_request.merged == true
+        working-directory: ${{ matrix.directory }}
+        run: terraform apply -auto-approve tfplan
