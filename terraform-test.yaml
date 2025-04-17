@@ -61,6 +61,7 @@ jobs: # Name of the job
         
           echo "$dirs" | jq -r '.[]' | while read -r dir; do
             dir=$(echo "$dir" | sed 's:/*$::' | xargs)
+            safe_dir=$(echo "$dir" | sed 's|/|_|g')
 
             should_skip=false
             for ignored_dir in "${ignored_dirs[@]}"; do
@@ -90,16 +91,16 @@ jobs: # Name of the job
 
              terraform show -no-color tfplan > tfplan.txt 
 
-              mkdir -p "../../plans/$dir"
-              mv tfplan "../../plans/$dir/"
-              mv tfplan.txt "../../plans/$dir/"      
+              mkdir -p "../../plans/$safe_dir"
+              mv tfplan "../../plans/$safe_dir/"
+              mv tfplan.txt "../../plans/$safe_dir/"      
 
              cd - || exit 1      
             
             {
               echo "### Terraform Plan for \$dir\"
               echo '```terraform'
-              cat "../../plans/$dir/tfplan.txt"
+              cat "plans/$safe_dir/tfplan.txt" 
               echo '```'
              } > comment-body.txt
 
