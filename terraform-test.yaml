@@ -1,89 +1,116 @@
-name: Terraform Plan and Apply
-
+# Define events that trigger the workflow
 on:
   pull_request:
     branches:
-      - main
+      - main # Trigger the workflow on pull requests targeting the main branch
     paths:
-      - modules/** # Trigger workflow if anything changes in modules/
+    - modules/** # And modules path
 
-permissions:
+permissions: # Gives permissions to the runner 
   contents: read
   pull-requests: write
 
-jobs:
-  detect-changes:
-    name: Detect Changed Directories
-    runs-on: self-hosted
-    outputs:
-      changed_dirs: ${{ steps.filter.outputs.changed_dirs }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Detect changed directories
-        id: filter
-        run: |
-          changed_dirs=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | awk -F'/' '/modules/ {print $1"/"$2"/"$3"/"$4"/"$5"/"$6}' | sort -u | jq -R -s -c 'split("\n")[:-1]')
-          echo "Changed directories: $changed_dirs"
-          echo "changed_dirs=$changed_dirs" >> "$GITHUB_ENV"
-          echo "changed_dirs=$changed_dirs" >> "$GITHUB_OUTPUT"
-
+jobs: # Name of the job 
   terraform:
-    name: Terraform Plan and Apply
-    needs: detect-changes
-    runs-on: self-hosted
-    if: ${{ fromJson(needs.detect-changes.outputs.changed_dirs) != [] }} # Skip job if no directories changed
-
-    strategy:
-      matrix:
-        directory: ${{ fromJson(needs.detect-changes.outputs.changed_dirs) }}
- 
+    name: 'Terraform Plan'
+    runs-on: self-hosted # Specify that the job runs on a self-hosted runner with label of the runner
+    
+    defaults: # Tells the runner to use bash
+      run:
+        shell: bash
 
     env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Set the GitHub token for authentication
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }} 
       ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}    
+    
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Azure CLI Login
+        uses: actions/checkout@v4 # Check out the repository to the runner
+        with:
+          fetch-depth: 2 # Fetches the last 2 commits
+          
+      - name: Azure CLI Login # Login using Azure CLI to the Service Principal 
         run: |
-          az login --service-principal -u "${{ secrets.AZURE_CLIENT_ID }}" -p "${{ secrets.AZURE_CLIENT_SECRET }}" --tenant "${{ secrets.AZURE_TENANT_ID }}"  
+          az --version
+          az login --service-principal -u ${{ secrets.AZURE_CLIENT_ID }} -p ${{ secrets.AZURE_CLIENT_SECRET }} --tenant ${{ secrets.AZURE_TENANT_ID }}  
 
       - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v3 # Use the setup-terraform action to install Terraform
         with:
-          terraform_version: 1.11.1
-          terraform_wrapper: true
-
-      - name: Terraform Init
-        run: terraform init
-        working-directory: ${{ matrix.directory }}
-
-      - name: Terraform Format Check
+          terraform_version: 1.11.1 # Specify the current Terraform version
+          terraform_wrapper: true # Enable Terraform wrapper
+        
+      - name: Terraform Format
         if: github.event_name == 'pull_request'
-        run: terraform fmt -recursive
+        run: terraform fmt -recursive # Formats the .tf files automatically on the pull request
 
-      - name: Post Plan to PR (Using GitHub API)
-        if: github.event_name == 'pull_request'
-        run: |
-          # Capture the plan output into a variable (limit to prevent truncation)
-          PR_BODY=$(head -c 65000 tfplan_output.txt)
+      - name: Get list of changed directories and Runs Terraform commands # Compares HEAD with origin/main, include only .tf files, awk to manipulate file paths, -F'/' sets field seperator, OFS="/" output field seperator, $NF"" removes file name leaving directory, print$0 prints modified line, sort sorts the directory paths -u removes duplicates, 
+        run: | # Add further directories to be ignored if needed under ignored_dirs
+          ignored_dirs=(
+           ""
+          )
 
-          # Prepare the comment body (wrap the plan output in code blocks)
-          COMMENT_BODY="### Terraform Plan - ${{ matrix.directory }}\n\`\`\`\n$PR_BODY\n\`\`\`"
+          dirs=$(git diff --name-only origin/main..HEAD | grep '\.tf$' | awk -F'/' '{OFS="/"; $NF=""; print$0}' | sort -u | uniq | jq -R -s -c 'split("\n") | map(select(. != ""))')
 
-          # Use curl to make a POST request to GitHub's API to create a comment on the PR
-          curl -X POST \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            -d "{\"body\": \"$COMMENT_BODY\"}" \
-            "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments"
+          echo "Changed directories: $dirs"
 
-      - name: Terraform Apply
-        if: github.event.pull_request.merged == true
-        working-directory: ${{ matrix.directory }}
-        run: terraform apply -auto-approve tfplan
+          mkdir -p plans
+        
+          echo "$dirs" | jq -r '.[]' | while read -r dir; do
+            dir=$(echo "$dir" | sed 's:/*$::' | xargs)
+
+            should_skip=false
+            for ignored_dir in "${ignored_dirs[@]}"; do
+              ignored_dir=$(echo "$ignored_dir" | sed 's:/*$::')
+              if [[ "$dir" == "$ignored_dir" ]]; then
+                should_skip=true
+                break
+              fi
+            done
+
+           if [ "$should_skip" = true ]; then
+             echo "Skipping Terraform in directory: $dir (ignored)"
+             continue
+           fi
+
+           if [ -d "$dir" ]; then
+             echo "Running Terraform in directory: $dir"
+             cd "$dir" || exit 1 
+             terraform init  
+             terraform plan -no-color -out=tfplan
+            
+           if [ ! -f tfplan ]; then
+             echo "No changes detected, skipping plan for $dir"
+             cd - || exit 1
+             continue
+           fi
+
+             terraform show -no-color tfplan > tfplan.txt 
+
+              mkdir -p "../../plans/$dir"
+              mv tfplan "../../plans/$dir/"
+              mv tfplan.txt "../../plans/$dir/"      
+
+             cd - || exit 1      
+            
+            {
+              echo "### Terraform Plan for \$dir\"
+              echo '```terraform'
+              cat "../../plans/$dir/tfplan.txt"
+              echo '```'
+             } > comment-body.txt
+
+              gh pr comment ${{ github.event.pull_request.number }} --body-file comment-body.txt
+
+            fi
+          done
+
+      - name: Upload Terraform plans
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plans
+          path: plans/
+          retention-days: 60
