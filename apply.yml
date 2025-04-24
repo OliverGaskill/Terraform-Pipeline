@@ -1,0 +1,73 @@
+name: Terraform Apply
+
+on:
+  workflow_dispatch:  # Manually trigger after reviewing the plan
+    inputs:
+      pr_number:
+        description: 'Pull Request number'
+        required: true
+
+permissions: # Gives permissions to the runner 
+  contents: read
+  pull-requests: write
+
+jobs:
+  apply:
+    name: Terraform Apply
+    runs-on: self-hosted  # Specify that the job runs on a self-hosted runner with label of the runner
+
+    defaults: # Tells the runner to default to bash
+      run:
+        shell: bash
+
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+
+    steps:
+      - name: Checkout repository # Check out the repository to the runner
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Azure CLI Login # Login using Azure CLI to the Service Principal 
+        run: |
+          az --version
+          az login --service-principal -u ${{ secrets.AZURE_CLIENT_ID }} -p ${{ secrets.AZURE_CLIENT_SECRET }} --tenant ${{ secrets.AZURE_TENANT_ID }}
+
+      - name: Set up Terraform # Use the setup-terraform action to install Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.11.1 # Specify the current Terraform version
+          terraform_wrapper: true
+
+      - name: Get run ID of "Terraform Plan" workflow # Finds workflows named Terraform Plan, Picks the most recent and adds the run-id to GITHUB_OUTPUT so the rest of steps can use run-id
+        id: get-run-id
+        run: |
+         WF_NAME="Terraform Plan"
+         RUN_ID=$(gh run list --workflow "${WF_NAME}" --json databaseId --jq '.[0].databaseId')
+         echo "Detected latest run id of ${RUN_ID} for workflow ${WF_NAME}"
+         echo "run-id=${RUN_ID}" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download Terraform plans # Downloads the artifact generated from terraform-plan.yaml
+        uses: actions/download-artifact@v4 
+        with:
+          name: terraform-plans-${{ inputs.pr_number }}
+          path: plans/
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.get-run-id.outputs.run-id }}
+
+      - name: Apply each plan # Applys the plans from downloaded artifacts 
+        run: |
+          for dir in $(find plans/ -type f -name tfplan | xargs -n1 dirname); do
+            echo "Applying plan in $dir"
+            cd "$dir" || exit 1
+            terraform init -input=false
+            terraform apply -input=false tfplan
+            cd - > /dev/null || exit 1
+          done
+
