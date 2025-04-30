@@ -1,4 +1,5 @@
 🌍 Terraform Workflows
+
 This repository uses GitHub Actions to automate the Terraform workflows for infrastructure as code (IaC) on Azure. It includes two key workflows:
 
 ✅ Terraform Plan (on Pull Request)
