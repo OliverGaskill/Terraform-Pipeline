@@ -42,10 +42,7 @@ jobs:
       - name: Terraform Init, Plan and Apply in changed directories
         run: |
           ignored_dirs=(
-           "modules/ahlens/landing-zones/ahlens-internal/sc-it-infra/rg-ahl-prod-infra-onepassword-sc" 
-           "modules/ahlens/platform/connectivity/sc-hub-connectivity/rg-ahl-prod-infra-networking-sc"
-           "modules/ahlens/global/iam/app-registrations"
-           "modules/template/example-management-group/example-subscription/example-rg-keyvault"
+           ""
           )
 
           dirs=$(git diff --name-only origin/main..HEAD | grep '\.tf$' | awk -F'/' '{OFS="/"; $NF=""; print$0}' | sort -u | uniq | jq -R -s -c 'split("\n") | map(select(. != ""))')

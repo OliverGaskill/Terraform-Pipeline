@@ -5,8 +5,7 @@ on:
   pull_request:
     branches:
       - main # Trigger the workflow on pull requests targeting the main branch
-    paths:
-    - modules/** # And modules path
+
 
 permissions: # Gives permissions to the runner 
   contents: read
@@ -46,16 +45,12 @@ jobs: # Name of the job
           terraform_wrapper: true # Enable Terraform wrapper
         
       - name: Terraform Format
-        if: github.event_name == 'pull_request'
         run: terraform fmt -recursive # Formats the .tf files automatically on the pull request
 
       - name: Get list of changed directories and Runs Terraform commands # Compares HEAD with origin/main, include only .tf files, awk to manipulate file paths, -F'/' sets field seperator, OFS="/" output field seperator, $NF"" removes file name leaving directory, print$0 prints modified line, sort sorts the directory paths -u removes duplicates, 
         run: | # Add further directories to be ignored if needed under ignored_dirs
           ignored_dirs=(
-           "modules/ahlens/landing-zones/ahlens-internal/sc-it-infra/rg-ahl-prod-infra-onepassword-sc" 
-           "modules/ahlens/platform/connectivity/sc-hub-connectivity/rg-ahl-prod-infra-networking-sc"
-           "modules/ahlens/global/iam/app-registrations"
-           "modules/template/example-management-group/example-subscription/example-rg-keyvault"
+           ""
           )
 
           dirs=$(git diff --name-only origin/main..HEAD | grep '\.tf$' | awk -F'/' '{OFS="/"; $NF=""; print$0}' | sort -u | uniq | jq -R -s -c 'split("\n") | map(select(. != ""))')
