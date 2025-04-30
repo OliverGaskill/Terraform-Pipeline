@@ -1,0 +1,79 @@
+name: Terraform Apply
+
+# Trigger the workflow manually
+on:
+  workflow_dispatch:
+
+permissions: # Gives permissions to the GITHUB_TOKEN
+  contents: read
+
+jobs:
+  terraform:
+    name: 'Terraform Apply'
+    runs-on: self-hosted
+
+    defaults: # Use bash for running shell commands
+      run:
+        shell: bash
+
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+
+    steps:
+      - name: Checkout repository # Clone the repo to the runner
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2 # Fetch more history so git diff works correctly
+
+      - name: Azure CLI Login
+        run: |
+          az --version
+          az login --service-principal -u ${{ secrets.AZURE_CLIENT_ID }} -p ${{ secrets.AZURE_CLIENT_SECRET }} --tenant ${{ secrets.AZURE_TENANT_ID }}
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.11.1
+          terraform_wrapper: true
+
+      - name: Terraform Init, Plan and Apply in changed directories
+        run: |
+          ignored_dirs=(
+           "modules/ahlens/landing-zones/ahlens-internal/sc-it-infra/rg-ahl-prod-infra-onepassword-sc" 
+           "modules/ahlens/platform/connectivity/sc-hub-connectivity/rg-ahl-prod-infra-networking-sc"
+           "modules/ahlens/global/iam/app-registrations"
+           "modules/template/example-management-group/example-subscription/example-rg-keyvault"
+          )
+
+          dirs=$(git diff --name-only origin/main..HEAD | grep '\.tf$' | awk -F'/' '{OFS="/"; $NF=""; print$0}' | sort -u | uniq | jq -R -s -c 'split("\n") | map(select(. != ""))')
+
+          echo "Changed directories: $dirs"
+
+          echo "$dirs" | jq -r '.[]' | while read -r dir; do
+            dir=$(echo "$dir" | sed 's:/*$::' | xargs)
+
+            should_skip=false
+            for ignored_dir in "${ignored_dirs[@]}"; do
+              ignored_dir=$(echo "$ignored_dir" | sed 's:/*$::')
+              if [[ "$dir" == "$ignored_dir" ]]; then
+                should_skip=true
+                break
+              fi
+            done
+
+            if [ "$should_skip" = true ]; then
+              echo "Skipping Terraform in directory: $dir (ignored)"
+              continue
+            fi
+
+            if [ -d "$dir" ]; then
+              echo "Running Terraform in directory: $dir"
+
+              terraform -chdir="$dir" init
+              terraform -chdir="$dir" plan -out=tfplan
+              terraform -chdir="$dir" apply -auto-approve tfplan
+            fi
+          done
