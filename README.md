@@ -3,7 +3,9 @@
 This repository uses GitHub Actions (Self Hosted Runners) to automate the Terraform workflows for infrastructure as code (IaC) on Azure. It includes two key workflows:
 
 ✅ Terraform Plan (on Pull Request)
+
 Path: .github/workflows/terraform-plan.yml
+
 Trigger: Pull Requests to the main branch 
 
 This workflow performs the following:
