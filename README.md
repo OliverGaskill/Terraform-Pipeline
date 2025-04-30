@@ -4,7 +4,7 @@ This repository uses GitHub Actions to automate the Terraform workflows for infr
 
 ✅ Terraform Plan (on Pull Request)
 Path: .github/workflows/terraform-plan.yml
-Trigger: Pull Requests to the main branch (only when .tf files under modules/** are changed)
+Trigger: Pull Requests to the main branch 
 
 This workflow performs the following:
 
@@ -29,7 +29,9 @@ Comments the Terraform plan output directly on the PR using the GitHub CLI.
 💬 This helps reviewers quickly understand what Terraform will change before merging.
 
 🚀 Terraform Apply (on Manual Trigger)
+
 Path: .github/workflows/terraform-apply.yml
+
 Trigger: Manually via the "Run workflow" button on GitHub (workflow_dispatch)
 
 This workflow applies the planned changes:
