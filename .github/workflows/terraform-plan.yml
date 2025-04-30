@@ -2,7 +2,7 @@ name: Terraform Plan
 
 # Define events that trigger the workflow
 on:
-  pull_request:
+  pull_request: 
     branches:
       - main # Trigger the workflow on pull requests targeting the main branch
 
@@ -14,7 +14,8 @@ permissions: # Gives permissions to the runner
 jobs: # Name of the job 
   terraform:
     name: 'Terraform Plan'
-    runs-on: self-hosted # Specify that the job runs on a self-hosted runner with label of the runner
+    runs-on: ubuntu # Use a self-hosted runner
+
     
     defaults: # Tells the runner to use bash
       run:
