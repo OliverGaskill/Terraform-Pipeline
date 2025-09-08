@@ -19,3 +19,9 @@ variable "resource_group_name" {
   type        = string
   default     = "rg-example"
 }
+
+variable "storage_account_name" {
+  description = "Name of the storage account"
+  type        = string
+  default     = "storage_acc_example"
+}
