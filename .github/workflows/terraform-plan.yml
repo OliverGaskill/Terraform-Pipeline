@@ -16,7 +16,7 @@ permissions: # Gives permissions to the runner
 jobs: # Name of the job 
   terraform:
     name: 'Terraform Plan'
-    runs-on: ubuntu # Use a self-hosted runner
+    runs-on: self-hosted # Use a self-hosted runner
 
     
     defaults: # Tells the runner to use bash
