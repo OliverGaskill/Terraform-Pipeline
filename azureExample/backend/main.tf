@@ -1,3 +1,4 @@
+# Use once for setting up a container with tf state
 # Login using az or set sub id
 
 terraform {
