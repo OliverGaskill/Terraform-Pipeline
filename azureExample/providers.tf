@@ -4,7 +4,7 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "~> 3.90"
+      version = "~> 5.0.0"
     }
   }
 
@@ -12,6 +12,6 @@ terraform {
     resource_group_name  = "acme-app1-backend-rg"   # matches backend RG
     storage_account_name = "acmeapp1backendsa"      # matches backend Storage Account
     container_name       = "tfstate"                # container created above
-    key                  = "terraform.tfstate"     # state file name
+    key                  = "terraform.tfstate"      # state file name
   }
 }
