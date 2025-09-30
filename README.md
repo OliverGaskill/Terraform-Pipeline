@@ -5,7 +5,7 @@ This repository uses GitHub Actions (Self Hosted Runners) to automate the Terraf
 ✅ Terraform Plan (on Pull Request)
 
 Path: .github/workflows/terraform-plan.yml
-
+ 
 Trigger: Pull Requests to the main branch 
 
 This workflow performs the following:
