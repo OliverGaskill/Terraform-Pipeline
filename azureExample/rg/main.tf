@@ -30,7 +30,7 @@ resource "azurerm_network_security_group" "nsg" {
 }
 
 
-resource "azurerm_resource_group" "rg" {
+resource "azurerm_resource_group" "rg03" {
   name     = "test-rg-3"
   location = var.location
 }
