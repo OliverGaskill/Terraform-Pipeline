@@ -1,6 +1,3 @@
-# Use once for setting up a container with tf state
-# Login using az or set sub id
-
 terraform {
   required_version = ">= 1.6.0"
 
