@@ -1,4 +1,4 @@
-# 📝 Terraform Plan Workflow Explanation# 
+# 📝 Terraform Plan Workflow Explanation
 
 
 ##  This GitHub Actions workflow automates Terraform plan execution on pull requests to the main branch. It uses a self-hosted runner and Azure Service Principal for authentication.
