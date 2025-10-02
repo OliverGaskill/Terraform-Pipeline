@@ -28,7 +28,7 @@ jobs:
       - name: Checkout repository # Clone the repo to the runner
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2 # Fetch more history so git diff works correctly
+          fetch-depth: 0 # Fetch more history so git diff works correctly
 
       - name: Azure CLI Login
         run: |

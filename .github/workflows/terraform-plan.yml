@@ -34,7 +34,7 @@ jobs: # Name of the job
       - name: Checkout repository
         uses: actions/checkout@v4 # Check out the repository to the runner
         with:
-          fetch-depth: 2 # Fetches the last 2 commits
+          fetch-depth: 0 # Fetches the last 2 commits
           
       - name: Azure CLI Login # Login using Azure CLI to the Service Principal 
         run: |
