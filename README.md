@@ -98,3 +98,6 @@ Plan files are stored in a structured plans directory for traceability.
 Improved Collaboration
 
 PR comments let team members review infrastructure changes before deployment.
+
+<img width="908" height="779" alt="image" src="https://github.com/user-attachments/assets/9a23f87c-446c-4dae-bd7e-b6000777f66b" />
+
