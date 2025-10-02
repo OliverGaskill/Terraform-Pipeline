@@ -52,69 +52,55 @@ jobs: # Name of the job
 
       - name: Get list of changed directories and Runs Terraform commands # Compares HEAD with origin/main, include only .tf files, awk to manipulate file paths, -F'/' sets field seperator, OFS="/" output field seperator, $NF"" removes file name leaving directory, print$0 prints modified line, sort sorts the directory paths -u removes duplicates, 
         run: | # Add further directories to be ignored if needed under ignored_dirs
-          ignored_dirs=( )
-
-          dirs=$(git diff --name-only origin/main..HEAD | grep '\.tf$' | awk -F'/' '{OFS="/"; $NF=""; print$0}' | sort -u | uniq | jq -R -s -c 'split("\n") | map(select(. != ""))')
+          dirs=$(git diff --name-only origin/main..HEAD | grep '\.tf$' \
+          | awk -F'/' '{OFS="/"; $NF=""; print$0}' \
+          | sort -u | uniq \
+          | jq -R -s -c 'split("\n") | map(select(. != ""))')
 
           echo "Changed directories: $dirs"
 
           mkdir -p plans
-        
+
           echo "$dirs" | jq -r '.[]' | while read -r dir; do
-            dir=$(echo "$dir" | sed 's:/*$::' | xargs)
-            safe_dir=$(echo "$dir" | sed 's|/|_|g')
+          dir=$(echo "$dir" | sed 's:/*$::' | xargs)
+          safe_dir=$(echo "$dir" | sed 's|/|_|g')
 
-            should_skip=false
-            for ignored_dir in "${ignored_dirs[@]}"; do
-              ignored_dir=$(echo "$ignored_dir" | sed 's:/*$::')
-              if [[ "$dir" == "$ignored_dir" ]]; then
-                should_skip=true
-                break
-              fi
-            done
+          if [ -d "$dir" ]; then
+           echo "Running Terraform in directory: $dir"
+    
+          terraform -chdir="$dir" init 
+          terraform -chdir="$dir" plan -no-color -out=tfplan
 
-           if [ "$should_skip" = true ]; then
-             echo "Skipping Terraform in directory: $dir (ignored)"
-             continue
-           fi
+          if [ ! -f "$dir/tfplan" ]; then
+           echo "No changes detected, skipping plan for $dir"
+          continue
+          fi
 
-           if [ -d "$dir" ]; then
-             echo "Running Terraform in directory: $dir"
-             
-             terraform -chdir="$dir" init 
-             terraform -chdir="$dir" plan -no-color -out=tfplan
-            
-           if [ ! -f "$dir/tfplan" ]; then
-             echo "No changes detected, skipping plan for $dir"
-             continue
-           fi
+          terraform -chdir="$dir" show -no-color tfplan > "$dir/tfplan.txt"
 
-             terraform -chdir="$dir" show -no-color tfplan > "$dir/tfplan.txt"
+          mkdir -p "plans/$safe_dir"
 
-              mkdir -p "plans/$safe_dir"
+          if [ -f "$dir/tfplan" ]; then              
+            mv "$dir/tfplan" "plans/$safe_dir/"
+           else
+            echo "Warning: tfplan not found in $dir after plan command"
+           continue
+          fi
 
-            if [ -f "$dir/tfplan" ]; then              
-              mv "$dir/tfplan" "plans/$safe_dir/"
-            else
-              echo "Warning: tfplan not found in $dir after plan command"
-              continue
-            fi
+          if [ -f "$dir/tfplan.txt" ]; then
+           mv "$dir/tfplan.txt" "plans/$safe_dir/" 
+          else
+           echo "Warning: tfplan.txt not found in $dir after show command"
+          continue
+          fi
+               
+          {
+          echo "### Terraform Plan for \`$dir\`"
+          echo '```terraform'
+          cat "plans/$safe_dir/tfplan.txt"
+          echo '```'
+          } > comment-body.txt
 
-            if [ -f "$dir/tfplan.txt" ]; then
-              mv "$dir/tfplan.txt" "plans/$safe_dir/" 
-            else
-              echo "Warning: tfplan.txt not found in $dir after show command"
-              continue
-            fi
-                         
-            {
-              echo "### Terraform Plan for \`$dir\`"
-              echo '```terraform'
-              cat "plans/$safe_dir/tfplan.txt"
-              echo '```'
-            } > comment-body.txt
-
-              gh pr comment ${{ github.event.pull_request.number }} --body-file comment-body.txt
-
-            fi
-          done
+          gh pr comment 3 --body-file comment-body.txt
+          fi
+         done
