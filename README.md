@@ -1,60 +1,100 @@
-🌍 Terraform Workflows
+# 📝 Terraform Plan Workflow Explanation# 
 
-This repository uses GitHub Actions (Self Hosted Runners) to automate the Terraform workflows on Azure. It includes two key workflows:
 
-✅ Terraform Plan (on Pull Request)
+##  This GitHub Actions workflow automates Terraform plan execution on pull requests to the main branch. It uses a self-hosted runner and Azure Service Principal for authentication.
 
-Path: .github/workflows/terraform-plan.yml
- 
-Trigger: Pull Requests to the main branch 
+****⚡How It Works****
 
-This workflow performs the following:
+Trigger
 
-Checks out the repository with the last 2 commits.
+The workflow runs on pull requests targeting the main branch.
 
-Authenticates with Azure using a service principal.
+Permissions
 
-Installs Terraform using the specified version (1.11.1).
+The runner has read access to repository contents and write access to pull request comments.
 
-Formats Terraform files with terraform fmt -recursive.
+Job Execution
 
-Detects changed directories by comparing .tf file changes between the PR and main.
+A single job named **Terraform Plan** runs on a self-hosted runner.
 
-Skips ignored directories (configurable).
+Uses Bash as the default shell for script execution.
 
-Runs terraform init and terraform plan for each affected directory.
+Environment Setup
 
-Generates a plan output (tfplan) and a human-readable version (tfplan.txt).
+Azure credentials and GitHub token are set as environment variables:
 
-Comments the Terraform plan output directly on the PR using the GitHub CLI.
+**ARM_CLIENT_ID, ARM_CLIENT_SECRET, ARM_TENANT_ID, ARM_SUBSCRIPTION_ID** 
 
-💬 This helps reviewers quickly understand what Terraform will change before merging.
+GITHUB_TOKEN for commenting on PRs
 
-🚀 Terraform Apply (on Manual Trigger)
+Steps
 
-Path: .github/workflows/terraform-apply.yml
+**Checkout repository**
 
-Trigger: Manually via the "Run workflow" button on GitHub (workflow_dispatch)
+Uses actions/checkout@v4 to clone the repository.
 
-This workflow applies the planned changes:
+Fetch depth is set to 2 commits to allow comparing recent changes.
 
-Checks out the repository.
+**Azure CLI Login**
 
-Authenticates with Azure using the same service principal credentials.
+Logs in to Azure using a Service Principal, enabling Terraform to deploy resources.
 
-Installs Terraform (1.11.1).
+**Setup Terraform**
 
-Detects .tf changes since the last commit on main.
+Installs Terraform version 1.11.1 using hashicorp/setup-terraform@v3.
 
-Skips ignored directories (configurable).
+Enables Terraform wrapper for consistent CLI usage.
+
+**Terraform Format** (terraform fmt)
+
+Automatically formats all .tf files recursively.
+
+Ensures code consistency and style compliance before planning.
+
+Detect Changed Terraform Directories & Run Terraform Plan
+
+Compares changes in the pull request with origin/main to identify modified .tf files.
+
+Extracts directories from changed files, ignoring specific directories (ignored_dirs).
+
+**For each changed directory**:
 
 Initializes Terraform (terraform init).
 
-Runs a fresh plan (terraform plan -out=tfplan).
+Runs terraform plan to generate an execution plan.
 
-Applies the plan automatically (terraform apply -auto-approve tfplan) for each changed directory.
+Converts the plan to a readable .txt file using terraform show.
 
-⚠️ Only use this after reviewing the Terraform Plan to ensure safe deployments.
+Moves the plan files to a central plans directory.
 
-🛠 Customize Ignored Directories
-Both workflows support ignoring specific directories by modifying the ignored_dirs array. This is useful if certain modules are experimental or not ready for deployment.
+Posts the plan as a comment on the pull request for review.
+
+## **✅ Benefits**
+
+Automated PR Feedback
+
+Developers can see Terraform plans directly in PR comments without running Terraform locally.
+
+Consistency & Code Quality
+
+terraform fmt ensures consistent formatting across all Terraform files.
+
+Selective Execution
+
+Only changed directories are processed, reducing unnecessary runs.
+
+Ignored directories allow flexibility for non-active or backend modules.
+
+### **Self-Hosted Runner**
+
+Uses a dedicated VM for faster execution and avoids GitHub-hosted runner limitations.
+
+## Secure & Centralized
+
+Azure Service Principal credentials are stored in secrets, ensuring secure access.
+
+Plan files are stored in a structured plans directory for traceability.
+
+Improved Collaboration
+
+PR comments let team members review infrastructure changes before deployment.
