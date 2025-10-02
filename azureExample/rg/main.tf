@@ -28,3 +28,9 @@ resource "azurerm_network_security_group" "nsg" {
     destination_address_prefix = "*"
   }
 }
+
+
+resource "azurerm_resource_group" "rg" {
+  name     = "test-rg-3"
+  location = var.location
+}
