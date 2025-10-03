@@ -95,9 +95,9 @@ Efficient: Only changed Terraform modules are processed, saving time.
 
 Collaborative: PR comments improve visibility of infrastructure changes.
 
-Traceable: All plan outputs are stored and visible before applying.
+Traceable: All plan outputs are visible before applying.
 
-Controlled Deployment: The PR cannot be merged before Apply is run, enforcing review and deployment discipline.
+No Need for secrets locally, eveything runns between the runner and the service principal
 
 <img width="908" height="779" alt="image" src="https://github.com/user-attachments/assets/9a23f87c-446c-4dae-bd7e-b6000777f66b" />
 
