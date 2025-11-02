@@ -1,7 +1,7 @@
 variable "company" {
   description = "Company or organization prefix"
   type        = string
-  default = "testcompany"
+  default = "RealCompany"
 }
 
 variable "project" {
@@ -13,7 +13,7 @@ variable "project" {
 variable "environment" {
   description = "Environment (dev/test/prod)"
   type        = string
-  default = "dev"
+  default = "prod"
 }
 
 variable "location" {
