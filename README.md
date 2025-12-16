@@ -1,4 +1,4 @@
-# **Terraform CI/CD for Azure using GitHub Actions
+# Terraform CI/CD for Azure using GitHub Actions
 **Overview**
 This project demonstrates a production-style Terraform CI/CD workflow for Azure using GitHub Actions and a self-hosted runner.
 It follows Infrastructure as Code best practices by separating plan and apply, enforcing manual review, and limiting deployments to only changed Terraform directories.
