@@ -5,10 +5,12 @@ It follows Infrastructure as Code best practices by separating plan and apply, e
 
 **The workflow is designed for team collaboration, security, and cost efficiency.**
 Architecture & Flow
+
 Pull Request → Terraform Plan → PR Review → Manual Apply → Merge
 
 
 **All infrastructure changes are reviewed before being applied**
+
 No Terraform commands are run locally
 Azure authentication is handled securely via Service Principal
 
