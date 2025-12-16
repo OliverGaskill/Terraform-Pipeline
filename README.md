@@ -1,103 +1,135 @@
-# **🌱 Terraform CI/CD Workflow (Plan & Apply)**
+Terraform CI/CD for Azure using GitHub Actions
+Overview
 
-**This workflow automates Terraform infrastructure management using GitHub Actions with a self-hosted runner and Azure Service Principal. It splits into two stages: Plan and Apply, ensuring safe and controlled deployments.**
+This project demonstrates a production-style Terraform CI/CD workflow for Azure using GitHub Actions and a self-hosted runner.
+It follows Infrastructure as Code best practices by separating plan and apply, enforcing manual review, and limiting deployments to only changed Terraform directories.
 
-```
-🔹Workflow Overview
-Pull Request to main
-        │
-        ▼
-   Terraform Plan
-        │
-   Review Plan Output
-        │
-⚠️ MANUAL STEP: Trigger Apply Workflow
-        │
-        ▼
-   Terraform Apply
-        │
-        ▼
-Merge Pull Request
+The workflow is designed for team collaboration, security, and cost efficiency.
 
-```
+Architecture & Flow
+Pull Request → Terraform Plan → PR Review → Manual Apply → Merge
 
 
-## Pull Request Trigger
+All infrastructure changes are reviewed before being applied
 
-Workflow runs automatically on pull requests targeting main.
+No Terraform commands are run locally
 
-Terraform Plan detects changes in .tf files only.
+Azure authentication is handled securely via Service Principal
 
-### Terraform Plan Workflow
+Why This Design?
+Separate Plan & Apply
 
-Checks out the repo and logs in to Azure using Service Principal credentials.
+Prevents accidental deployments
 
-Sets up Terraform (1.11.1) and formats .tf files automatically.
+Allows teams to review changes before applying
 
-Detects directories with modified Terraform files, excluding any ignored directories (e.g., backend modules).
+Matches real-world DevOps and CloudOps workflows
 
-Runs terraform init and terraform plan in each changed directory.
+Manual Apply Before Merge
 
-Converts the plan to a readable .txt file and posts it as a PR comment.
+Ensures infrastructure is actually deployed before code is merged
 
-## **Manual Review**
+Avoids “merged but not applied” drift
 
-Developers review the Terraform plan in PR comments.
+Common pattern in platform and DevOps teams
 
-Ensures all proposed changes are correct before deployment.
+Selective Directory Execution
 
-### ⚠️ Manual Terraform Apply
+Only directories with changed .tf files are processed
 
-**Important: The Apply workflow must be manually triggered before merging the pull request.**
+Shared or backend modules can be excluded
 
-Checks out the repository and logs in to Azure.
-
-Runs terraform init, plan, and apply -auto-approve on changed directories.
-
-Only applies changes in directories that were modified in the PR.
-
-### ❗ Do not merge the pull request before manually running the Apply workflow.
- This ensures infrastructure changes are actually deployed and prevents unreviewed code from being merged.
-
-## 🔹 Key Features
-
-Automated PR Feedback
-
-Plan workflow posts detailed Terraform plans as PR comments for easy review.
-
-Selective Execution
-
-Only directories with .tf changes are processed.
-
-Ignored directories are skipped, protecting backend or shared modules.
-
-## Secure Deployment
-
-Azure Service Principal credentials are stored securely in GitHub secrets.
-
-Manual Apply ensures that changes are deployed only after review.
-
-Consistency & Collaboration
-
-terraform fmt ensures code style consistency.
-
-Teams can safely collaborate and review changes before deployment.
+Improves performance and reduces risk
 
 Self-Hosted Runner
 
-Provides faster execution, full environment control, and avoids GitHub-hosted runner limitations.
+Faster execution and full environment control
 
-### ✅ Benefits
+Avoids GitHub-hosted runner limitations
 
-Safe and Predictable: Manual approval and manual Apply step prevent accidental deployments.
+Cost-effective for frequent Terraform runs
 
-Efficient: Only changed Terraform modules are processed, saving time.
+Terraform Plan Workflow
 
-Collaborative: PR comments improve visibility of infrastructure changes.
+Triggered automatically on pull requests targeting main.
 
-Traceable: All plan outputs are visible before applying.
+Steps:
 
-No Need for secrets locally, eveything runns between the runner and the service principal
+Authenticate to Azure using a Service Principal
 
-<img width="908" height="779" alt="image" src="https://github.com/user-attachments/assets/9a23f87c-446c-4dae-bd7e-b6000777f66b" />
+Run terraform fmt to ensure consistent code style
+
+Detect changed Terraform directories
+
+Run terraform init and terraform plan
+
+Convert plan output to readable .txt
+
+Post the plan directly as a PR comment
+
+This allows reviewers to see exact infrastructure changes without running Terraform locally.
+
+Terraform Apply Workflow (Manual)
+
+Triggered manually before merging the pull request.
+
+Steps:
+
+Authenticate to Azure
+
+Re-run terraform init and terraform plan
+
+Apply changes using terraform apply -auto-approve
+
+Apply only the directories changed in the PR
+
+⚠️ Pull requests must not be merged before the Apply workflow is executed.
+
+Security Considerations
+
+Azure credentials are stored securely in GitHub Secrets
+
+No secrets are stored locally
+
+CI/CD communication is restricted to HTTPS (port 443)
+
+All infrastructure changes are auditable through PR history
+
+Benefits
+
+Safe: Manual review and apply prevent unintended changes
+
+Efficient: Only modified Terraform code is executed
+
+Collaborative: Plans are visible directly in PR comments
+
+Traceable: Full audit trail of infrastructure changes
+
+Scalable: Designed to support multiple teams and environments
+
+Technologies Used
+
+Terraform
+
+Azure
+
+GitHub Actions
+
+Self-hosted GitHub Runner
+
+PowerShell
+
+Git
+
+What This Project Demonstrates
+
+Real-world Terraform CI/CD patterns
+
+Secure Azure authentication for automation
+
+Infrastructure-as-Code best practices
+
+DevOps collaboration workflows
+
+Cost-aware CI/CD design
 
